@@ -1,0 +1,131 @@
+@page "/mylistings"
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<AppUser> UserManager
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>My Listings</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">My Listings</MudText>
+    
+    @if (_listings.Any())
+    {
+        <MudTable Items="@_listings" Dense="false" Hover="true" Breakpoint="Breakpoint.Sm">
+            <HeaderContent>
+                <MudTh>Image</MudTh>
+                <MudTh>Title</MudTh>
+                <MudTh>Price</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Created</MudTh>
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Image">
+                    @if (context.Images.Any())
+                    {
+                        <MudImage Src="@context.Images.First().PathOrUrl" Height="60" Width="60" ObjectFit="ObjectFit.Cover" />
+                    }
+                </MudTd>
+                <MudTd DataLabel="Title">@context.Title</MudTd>
+                <MudTd DataLabel="Price">$@context.Price.ToString("F2")</MudTd>
+                <MudTd DataLabel="Status">
+                    <MudChip Size="Size.Small" Color="@GetStatusColor(context.Status)">@context.Status</MudChip>
+                </MudTd>
+                <MudTd DataLabel="Created">@context.CreatedAt.ToString("MM/dd/yyyy")</MudTd>
+                <MudTd DataLabel="Actions">
+                    <MudStack Row="true" Spacing="1">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => EditListing(context))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteListing(context))" />
+                        @if (context.Status == ListingStatus.Active)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" 
+                                          OnClick="@(() => MarkAsSold(context))" Title="Mark as Sold" />
+                        }
+                    </MudStack>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else
+    {
+        <MudText>You haven't created any listings yet.</MudText>
+    }
+</MudContainer>
+
+@code {
+    private List<Listing> _listings = new();
+    private AppUser? _currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            _currentUser = await UserManager.GetUserAsync(authState.User);
+            LoadListings();
+        }
+        else
+        {
+            Navigation.NavigateTo("/Identity/Account/Login");
+        }
+    }
+
+    private void LoadListings()
+    {
+        if (_currentUser == null) return;
+        
+        using var context = DbContextFactory.CreateDbContext();
+        _listings = context.Listings
+            .Include(l => l.Images)
+            .Where(l => l.SellerId == _currentUser.Id)
+            .OrderByDescending(l => l.CreatedAt)
+            .ToList();
+    }
+
+    private Color GetStatusColor(ListingStatus status)
+    {
+        return status switch
+        {
+            ListingStatus.Active => Color.Success,
+            ListingStatus.Sold => Color.Info,
+            ListingStatus.Removed => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private async Task EditListing(Listing listing)
+    {
+        Navigation.NavigateTo($"/editlisting/{listing.Id}");
+    }
+
+    private async Task DeleteListing(Listing listing)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Delete Listing",
+            "Are you sure you want to delete this listing?",
+            yesText:"Delete", cancelText:"Cancel");
+        
+        if (result == true)
+        {
+            using var context = DbContextFactory.CreateDbContext();
+            context.Listings.Remove(listing);
+            context.SaveChanges();
+            LoadListings();
+            Snackbar.Add("Listing deleted", Severity.Success);
+        }
+    }
+
+    private void MarkAsSold(Listing listing)
+    {
+        using var context = DbContextFactory.CreateDbContext();
+        listing.Status = ListingStatus.Sold;
+        listing.ClosedAt = DateTime.UtcNow;
+        context.SaveChanges();
+        LoadListings();
+        Snackbar.Add("Listing marked as sold", Severity.Success);
+    }
+}
+

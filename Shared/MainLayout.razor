@@ -1,0 +1,90 @@
+@inherits LayoutComponentBase
+@using MudBlazor
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<AppUser> UserManager
+@inject SignInManager<AppUser> SignInManager
+@inject NavigationManager Navigation
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudText Typo="Typo.h6">
+            <MudLink Href="/" Style="color: inherit; text-decoration: none;">CampusSwap</MudLink>
+        </MudText>
+        <MudSpacer />
+        <MudThemeProvider IsDarkMode="@_isDarkMode" />
+        <MudIconButton Icon="@GetThemeIcon()" Color="Color.Inherit" Edge="Edge.End" OnClick="ToggleTheme" />
+        @if (_user != null)
+        {
+            <MudText Typo="Typo.body1" Class="ml-4 mr-2">@_user.Email</MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" Edge="Edge.End" OnClick="Logout" />
+        }
+        else
+        {
+            <MudButton Variant="Variant.Text" Href="/Identity/Account/Register">Register</MudButton>
+            <MudButton Variant="Variant.Text" Href="/Identity/Account/Login">Login</MudButton>
+        }
+    </MudAppBar>
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <MudNavMenu>
+            <MudNavLink Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
+            @if (_user != null)
+            {
+                <MudNavLink Href="/newlisting">Sell Item</MudNavLink>
+                <MudNavLink Href="/mylistings">My Listings</MudNavLink>
+                <MudNavLink Href="/messages">Messages</MudNavLink>
+                <MudNavLink Href="/favorites">Favorites</MudNavLink>
+            }
+        </MudNavMenu>
+    </MudDrawer>
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _isDarkMode = false;
+    private AppUser? _user;
+    private bool _isLoaded = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_isLoaded)
+        {
+            _isLoaded = true;
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                _user = await UserManager.GetUserAsync(authState.User);
+                StateHasChanged();
+            }
+        }
+    }
+
+    void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    void ToggleTheme()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+
+    void Changed(bool newValue)
+    {
+        _isDarkMode = newValue;
+    }
+
+    string GetThemeIcon()
+    {
+        return _isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode;
+    }
+
+    private void Logout()
+    {
+        Navigation.NavigateTo("/Identity/Account/Logout", forceLoad: true);
+    }
+}
+

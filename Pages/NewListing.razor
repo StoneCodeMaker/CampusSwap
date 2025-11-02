@@ -1,0 +1,106 @@
+@page "/newlisting"
+@using Microsoft.AspNetCore.Components.Forms
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<AppUser> UserManager
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Create New Listing</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Create New Listing</MudText>
+    
+    <EditForm Model="@_listing" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        
+        <MudTextField @bind-Value="_listing.Title" Label="Title" Required="true" RequiredError="Title is required" />
+        
+        <MudNumericField T="decimal" @bind-Value="_listing.Price" Label="Price ($)" Required="true" Min="0.01m" Step="0.01m" Variant="Variant.Outlined" />
+        
+        <MudSelect T="int" @bind-Value="_listing.CategoryId" Label="Category" Required="true">
+            @foreach (var category in _categories)
+            {
+                <MudSelectItem Value="category.Id">@category.Name</MudSelectItem>
+            }
+        </MudSelect>
+        
+        <MudSelect T="ListingCondition" @bind-Value="_listing.Condition" Label="Condition" Required="true">
+            <MudSelectItem Value="ListingCondition.New">New</MudSelectItem>
+            <MudSelectItem Value="ListingCondition.LikeNew">Like New</MudSelectItem>
+            <MudSelectItem Value="ListingCondition.Good">Good</MudSelectItem>
+            <MudSelectItem Value="ListingCondition.Fair">Fair</MudSelectItem>
+        </MudSelect>
+        
+        <MudTextField @bind-Value="_listing.Description" Label="Description" Lines="5" Required="true" 
+                      RequiredError="Description is required" Variant="Variant.Outlined" />
+        
+        <MudCard Class="mt-4">
+            <MudCardContent>
+                <MudText Typo="Typo.body2">Images will be placeholder URLs. Adding real image upload support coming soon!</MudText>
+            </MudCardContent>
+        </MudCard>
+        
+        <MudStack Row="true" Spacing="2" Class="mt-4">
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">Create Listing</MudButton>
+            <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+        </MudStack>
+    </EditForm>
+</MudContainer>
+
+@code {
+    private Listing _listing = new();
+    private List<Category> _categories = new();
+    private AppUser? _currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            _currentUser = await UserManager.GetUserAsync(authState.User);
+        }
+        else
+        {
+            Navigation.NavigateTo("/Identity/Account/Login");
+            return;
+        }
+
+        using var context = DbContextFactory.CreateDbContext();
+        _categories = context.Categories.ToList();
+        
+        if (_categories.Any())
+        {
+            _listing.CategoryId = _categories.First().Id;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (_currentUser == null) return;
+
+        using var context = DbContextFactory.CreateDbContext();
+        _listing.SellerId = _currentUser.Id;
+        _listing.Status = ListingStatus.Active;
+        _listing.CreatedAt = DateTime.UtcNow;
+        
+        // Add placeholder image
+        var image = new ListingImage 
+        { 
+            PathOrUrl = $"https://picsum.photos/400/300?random={Guid.NewGuid().GetHashCode()}" 
+        };
+        _listing.Images.Add(image);
+        
+        context.Listings.Add(_listing);
+        context.SaveChanges();
+        
+        Snackbar.Add("Listing created successfully!", Severity.Success);
+        Navigation.NavigateTo("/mylistings");
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
+

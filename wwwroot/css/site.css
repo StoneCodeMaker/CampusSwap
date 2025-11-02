@@ -1,0 +1,17 @@
+body {
+    font-family: 'Roboto', sans-serif;
+}
+
+html, body {
+    height: 100%;
+}
+
+.form-floating > label {
+    padding: 1rem 0.75rem;
+}
+
+.messages-container {
+    background-color: #f5f5f5;
+    border-radius: 8px;
+}
+

@@ -1,0 +1,196 @@
+@page "/listing/{Id:int}"
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<AppUser> UserManager
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_listing?.Title ?? "Listing Details")</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    @if (_listing != null)
+    {
+        <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" Variant="Variant.Text" OnClick="BackToList">Back to Listings</MudButton>
+        
+        <MudGrid Spacing="3" Class="mt-2">
+            <MudItem xs="12" md="6">
+                @if (_listing.Images.Any())
+                {
+                    <MudCarousel Items="@(_listing.Images.Select(i => i.PathOrUrl).ToArray())" 
+                                 ItemTemplate="@ItemTemplate" Class="mb-4" />
+                }
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudText Typo="Typo.h4">@_listing.Title</MudText>
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">@_listing.Category?.Name</MudText>
+                <MudChip Size="Size.Medium" Color="@GetConditionColor(_listing.Condition)" Class="my-2">
+                    @_listing.Condition
+                </MudChip>
+                <MudText Typo="Typo.h5" Color="Color.Primary" Class="my-2">$@_listing.Price.ToString("F2")</MudText>
+                <MudText Typo="Typo.body1" Class="my-4" Style="white-space: pre-line;">@_listing.Description</MudText>
+                
+                <MudDivider Class="my-4" />
+                
+                <MudText Typo="Typo.h6">Seller</MudText>
+                <MudText Typo="Typo.body2">@_seller?.Email</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@_seller?.Campus</MudText>
+                
+                @if (_currentUser != null && _currentUser.Id != _listing.SellerId)
+                {
+                    <MudStack Row="true" Spacing="2" Class="mt-4">
+                        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Message" 
+                                   OnClick="StartMessage" Color="Color.Primary">Message Seller</MudButton>
+                        <MudIconButton Icon="@GetFavoriteIcon()" OnClick="ToggleFavorite" Color="Color.Primary" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Flag" OnClick="ShowReportDialog" Color="Color.Error" />
+                    </MudStack>
+                }
+                else if (_currentUser?.Id == _listing.SellerId)
+                {
+                    <MudAlert Severity="Severity.Info" Class="mt-4">This is your listing</MudAlert>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mt-4">Please log in to message the seller</MudAlert>
+                }
+            </MudItem>
+        </MudGrid>
+    }
+    else
+    {
+        <MudText>Listing not found</MudText>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    
+    private Listing? _listing;
+    private AppUser? _seller;
+    private AppUser? _currentUser;
+    private bool _isFavorite;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            _currentUser = await UserManager.GetUserAsync(authState.User);
+        }
+        LoadListing();
+    }
+
+    private void LoadListing()
+    {
+        using var context = DbContextFactory.CreateDbContext();
+        _listing = context.Listings
+            .Include(l => l.Images)
+            .Include(l => l.Category)
+            .Include(l => l.Seller)
+            .FirstOrDefault(l => l.Id == Id);
+
+        if (_listing != null)
+        {
+            _seller = context.Users.FirstOrDefault(u => u.Id == _listing.SellerId);
+            
+            if (_currentUser != null)
+            {
+                _isFavorite = context.Favorites.Any(f => f.UserId == _currentUser.Id && f.ListingId == Id);
+            }
+        }
+    }
+
+    private RenderFragment<string> ItemTemplate = item => builder =>
+    {
+        builder.OpenComponent<MudImage>(0);
+        builder.AddAttribute(1, "Src", item);
+        builder.AddAttribute(2, "Height", "400");
+        builder.AddAttribute(3, "ObjectFit", ObjectFit.Cover);
+        builder.CloseComponent();
+    };
+
+    private void BackToList()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private Color GetConditionColor(ListingCondition condition)
+    {
+        return condition switch
+        {
+            ListingCondition.New => Color.Success,
+            ListingCondition.LikeNew => Color.Info,
+            ListingCondition.Good => Color.Default,
+            ListingCondition.Fair => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    private async Task StartMessage()
+    {
+        if (_listing == null || _currentUser == null) return;
+
+        using var context = DbContextFactory.CreateDbContext();
+        var thread = context.MessageThreads
+            .FirstOrDefault(t => t.ListingId == Id && t.BuyerId == _currentUser.Id);
+
+        if (thread == null)
+        {
+            thread = new MessageThread
+            {
+                ListingId = Id,
+                SellerId = _listing.SellerId,
+                BuyerId = _currentUser.Id,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.MessageThreads.Add(thread);
+            context.SaveChanges();
+        }
+
+        Navigation.NavigateTo("/messages");
+    }
+
+    private void ToggleFavorite()
+    {
+        if (_currentUser == null)
+        {
+            Snackbar.Add("Please log in to favorite listings", Severity.Warning);
+            return;
+        }
+
+        using var context = DbContextFactory.CreateDbContext();
+        var favorite = context.Favorites.FirstOrDefault(f => f.UserId == _currentUser.Id && f.ListingId == Id);
+
+        if (favorite == null)
+        {
+            context.Favorites.Add(new Favorite { UserId = _currentUser.Id, ListingId = Id });
+            _isFavorite = true;
+            Snackbar.Add("Added to favorites", Severity.Success);
+        }
+        else
+        {
+            context.Favorites.Remove(favorite);
+            _isFavorite = false;
+            Snackbar.Add("Removed from favorites", Severity.Info);
+        }
+        context.SaveChanges();
+    }
+
+    private string GetFavoriteIcon()
+    {
+        return _isFavorite ? Icons.Material.Filled.Favorite : Icons.Material.Filled.FavoriteBorder;
+    }
+
+    private async Task ShowReportDialog()
+    {
+        var parameters = new DialogParameters { ["ListingId"] = Id };
+        var dialog = await DialogService.ShowAsync<ReportDialog>("Report Listing", parameters);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            Snackbar.Add("Report submitted successfully", Severity.Success);
+        }
+    }
+}
+

@@ -1,0 +1,242 @@
+@page "/"
+@page "/index"
+@inject NavigationManager Navigation
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<AppUser> UserManager
+@inject ILogger<Home> Logger
+
+<PageTitle>CampusSwap - Browse Listings</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">CampusSwap Marketplace</MudText>
+    
+    <MudGrid Spacing="3" Justify="Justify.Center" AlignItems="AlignItems.Center">
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6">Active Listings</MudText>
+                    <MudText Typo="Typo.h3" Color="Color.Primary">@_activeCount</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6">Categories</MudText>
+                    <MudText Typo="Typo.h3" Color="Color.Primary">@_categoryCount</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6">Total Users</MudText>
+                    <MudText Typo="Typo.h3" Color="Color.Primary">@_userCount</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <MudDivider Class="my-4" />
+
+    <MudGrid Spacing="2" Class="mb-4">
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_searchText" Placeholder="Search listings..." Variant="Variant.Outlined" Adornment="Adornment.Start" 
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" @oninput="OnSearch" />
+        </MudItem>
+    </MudGrid>
+
+    <MudText Typo="Typo.h6" Class="mb-2">Browse by Category</MudText>
+    <MudStack Row="true" Spacing="2">
+        <MudChip Size="Size.Small" Color="Color.Default" Clicked="@(() => SelectCategory(null))" 
+                 Selected="_selectedCategoryId == null">All</MudChip>
+        @foreach (var category in _categories)
+        {
+            <MudChip Size="Size.Small" Color="Color.Primary" Clicked="@(() => SelectCategory(category.Id))" 
+                     Selected="_selectedCategoryId == category.Id">@category.Name</MudChip>
+        }
+    </MudStack>
+
+    <MudDivider Class="my-4" />
+
+    @if (_listings.Any())
+    {
+        <MudGrid Spacing="3">
+            @foreach (var listing in _listings)
+            {
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudCard Class="item-card" OnClick="@(() => NavigateToDetail(listing.Id))">
+                        <MudCardContent>
+                            <MudImage Src="@listing.Images.FirstOrDefault()?.PathOrUrl" Height="200" ObjectFit="ObjectFit.Cover" />
+                            <MudText Typo="Typo.subtitle1" Class="mt-2">@listing.Title</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@listing.Category?.Name</MudText>
+                            <MudChip Size="Size.Small" Color="GetConditionColor(listing.Condition)" Class="my-1">
+                                @listing.Condition
+                            </MudChip>
+                            <MudText Typo="Typo.h6" Class="price-text mt-2">$@listing.Price.ToString("F2")</MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else
+    {
+        <MudText Align="Align.Center" Class="mt-8">No listings found.</MudText>
+    }
+</MudContainer>
+
+@code {
+    private List<Listing> _listings = new();
+    private List<Category> _categories = new();
+    private int? _selectedCategoryId = null;
+    private string _searchText = string.Empty;
+    private int _activeCount = 0;
+    private int _categoryCount = 0;
+    private int _userCount = 0;
+    private AppUser? _currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Logger.LogInformation("Initializing Home page");
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                _currentUser = await UserManager.GetUserAsync(authState.User);
+                Logger.LogInformation("User authenticated: {UserId}", _currentUser?.Id);
+            }
+            LoadData();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error initializing Home page");
+        }
+    }
+
+    private void LoadData()
+    {
+        try
+        {
+            Logger.LogInformation("Loading data for Home page");
+            using var context = DbContextFactory.CreateDbContext();
+            
+            try
+            {
+                _categories = context.Categories.ToList();
+                Logger.LogInformation("Loaded {CategoryCount} categories", _categories.Count);
+                _categoryCount = _categories.Count;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error loading categories");
+                _categories = new List<Category>();
+                _categoryCount = 0;
+            }
+            
+            try
+            {
+                _userCount = context.Users.Count();
+                Logger.LogInformation("Counted {UserCount} users", _userCount);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error counting users");
+                _userCount = 0;
+            }
+            
+            try
+            {
+                var query = context.Listings
+                    .Include(l => l.Images)
+                    .Include(l => l.Category)
+                    .Where(l => l.Status == ListingStatus.Active)
+                    .AsQueryable();
+
+                if (_selectedCategoryId.HasValue)
+                {
+                    Logger.LogInformation("Filtering by category: {CategoryId}", _selectedCategoryId.Value);
+                    query = query.Where(l => l.CategoryId == _selectedCategoryId.Value);
+                }
+
+                if (!string.IsNullOrWhiteSpace(_searchText))
+                {
+                    Logger.LogInformation("Searching for text: {SearchText}", _searchText);
+                    query = query.Where(l => l.Title.Contains(_searchText) || l.Description.Contains(_searchText));
+                }
+
+                _listings = query.OrderByDescending(l => l.CreatedAt).ToList();
+                Logger.LogInformation("Loaded {ListingCount} listings", _listings.Count);
+                
+                _activeCount = context.Listings.Count(l => l.Status == ListingStatus.Active);
+                Logger.LogInformation("Active listings count: {ActiveCount}", _activeCount);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error loading listings");
+                _listings = new List<Listing>();
+                _activeCount = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Unhandled exception in LoadData");
+        }
+    }
+
+    private void OnSearch(ChangeEventArgs e)
+    {
+        try
+        {
+            _searchText = e.Value?.ToString() ?? string.Empty;
+            Logger.LogInformation("Search triggered with text: {SearchText}", _searchText);
+            LoadData();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error in OnSearch");
+        }
+    }
+
+    private void SelectCategory(int? categoryId)
+    {
+        try
+        {
+            _selectedCategoryId = categoryId;
+            Logger.LogInformation("Category selected: {CategoryId}", categoryId);
+            LoadData();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error in SelectCategory");
+        }
+    }
+
+    private void NavigateToDetail(int listingId)
+    {
+        try
+        {
+            Logger.LogInformation("Navigating to listing detail: {ListingId}", listingId);
+            Navigation.NavigateTo($"/listing/{listingId}");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error navigating to listing detail");
+        }
+    }
+
+    private Color GetConditionColor(ListingCondition condition)
+    {
+        return condition switch
+        {
+            ListingCondition.New => Color.Success,
+            ListingCondition.LikeNew => Color.Info,
+            ListingCondition.Good => Color.Default,
+            ListingCondition.Fair => Color.Warning,
+            _ => Color.Default
+        };
+    }
+}
+

@@ -1,0 +1,96 @@
+@page "/favorites"
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<AppUser> UserManager
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>My Favorites</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">My Favorites</MudText>
+    
+    @if (_favorites.Any())
+    {
+        <MudGrid Spacing="3">
+            @foreach (var favorite in _favorites)
+            {
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudCard Class="item-card">
+                        <MudCardContent>
+                            <MudImage Src="@favorite.Listing?.Images.FirstOrDefault()?.PathOrUrl" Height="200" ObjectFit="ObjectFit.Cover" />
+                            <MudText Typo="Typo.subtitle1" Class="mt-2">@favorite.Listing?.Title</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@favorite.Listing?.Category?.Name</MudText>
+                            <MudText Typo="Typo.h6" Class="price-text mt-2">$@favorite.Listing?.Price.ToString("F2")</MudText>
+                            <MudStack Row="true" Spacing="2" Class="mt-2">
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" 
+                                          OnClick="@(() => ViewListing(favorite.Listing?.Id ?? 0))">View</MudButton>
+                                <MudIconButton Icon="@Icons.Material.Filled.Favorite" Size="Size.Small" Color="Color.Primary" 
+                                              OnClick="@(() => RemoveFavorite(favorite.Listing?.Id ?? 0))" />
+                            </MudStack>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else
+    {
+        <MudText>No favorites yet.</MudText>
+    }
+</MudContainer>
+
+@code {
+    private List<Favorite> _favorites = new();
+    private AppUser? _currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            _currentUser = await UserManager.GetUserAsync(authState.User);
+            LoadFavorites();
+        }
+        else
+        {
+            Navigation.NavigateTo("/Identity/Account/Login");
+        }
+    }
+
+    private void LoadFavorites()
+    {
+        if (_currentUser == null) return;
+        
+        using var context = DbContextFactory.CreateDbContext();
+        _favorites = context.Favorites
+            .Include(f => f.Listing)
+                .ThenInclude(l => l!.Images)
+            .Include(f => f.Listing)
+                .ThenInclude(l => l!.Category)
+            .Where(f => f.UserId == _currentUser.Id && f.Listing != null && f.Listing.Status == ListingStatus.Active)
+            .ToList();
+    }
+
+    private void ViewListing(int listingId)
+    {
+        Navigation.NavigateTo($"/listing/{listingId}");
+    }
+
+    private void RemoveFavorite(int listingId)
+    {
+        if (_currentUser == null) return;
+        
+        using var context = DbContextFactory.CreateDbContext();
+        var favorite = context.Favorites.FirstOrDefault(f => f.UserId == _currentUser.Id && f.ListingId == listingId);
+        
+        if (favorite != null)
+        {
+            context.Favorites.Remove(favorite);
+            context.SaveChanges();
+            LoadFavorites();
+            Snackbar.Add("Removed from favorites", Severity.Info);
+        }
+    }
+}
+

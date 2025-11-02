@@ -1,0 +1,158 @@
+@page "/messages"
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<AppUser> UserManager
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject ISnackbar Snackbar
+
+<PageTitle>Messages</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Messages</MudText>
+    
+    @if (_threads.Any())
+    {
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="4">
+                <MudCard>
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-3">Conversations</MudText>
+                        <MudList Clickable="true">
+                            @foreach (var thread in _threads)
+                            {
+                                <MudListItem OnClick="@(() => SelectThread(thread))" 
+                                             Selected="@(_selectedThread?.Id == thread.Id)">
+                                    <MudText Typo="Typo.body2" Class="font-weight-bold">
+                                        @(thread.Listing?.Title ?? "Untitled")
+                                    </MudText>
+                                    <MudText Typo="Typo.body2" Size="Size.Small" Color="Color.Secondary">
+                                        with @(thread.Buyer?.Email == _currentUser?.Email ? thread.Seller?.Email : thread.Buyer?.Email)
+                                    </MudText>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" md="8">
+                @if (_selectedThread != null)
+                {
+                    <MudCard>
+                        <MudCardContent>
+                            <MudText Typo="Typo.h6">@_selectedThread.Listing?.Title</MudText>
+                            
+                            <MudPaper Elevation="0" Class="messages-container pa-4 mt-4" Style="max-height: 400px; overflow-y: auto;">
+                                @foreach (var message in _selectedThread.Messages.OrderBy(m => m.SentAt))
+                                {
+                                    <MudStack Spacing="0" Class="mb-2">
+                                        <MudText Typo="Typo.body2" Class="@(message.SenderId == _currentUser?.Id ? "text-right" : "")">
+                                            @message.Body
+                                        </MudText>
+                                        <MudText Typo="Typo.caption" Size="Size.Small" Color="Color.Secondary">
+                                            @message.SentAt.ToString("MM/dd/yyyy HH:mm")
+                                        </MudText>
+                                    </MudStack>
+                                }
+                            </MudPaper>
+                            
+                            <MudTextField @bind-Value="_newMessage" Label="Type a message..." Variant="Variant.Outlined" Class="mt-4" 
+                                          Immediate="false" @onkeypress="HandleKeyPress" />
+                            <MudButton Variant="Variant.Filled" OnClick="SendMessage" Class="mt-2" FullWidth="true">Send</MudButton>
+                        </MudCardContent>
+                    </MudCard>
+                }
+                else
+                {
+                    <MudText>Select a conversation from the list</MudText>
+                }
+            </MudItem>
+        </MudGrid>
+    }
+    else
+    {
+        <MudText>No messages yet. Start a conversation from a listing!</MudText>
+    }
+</MudContainer>
+
+@code {
+    private List<MessageThread> _threads = new();
+    private MessageThread? _selectedThread;
+    private AppUser? _currentUser;
+    private string _newMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            _currentUser = await UserManager.GetUserAsync(authState.User);
+            LoadThreads();
+        }
+    }
+
+    private void LoadThreads()
+    {
+        if (_currentUser == null) return;
+        
+        using var context = DbContextFactory.CreateDbContext();
+        _threads = context.MessageThreads
+            .Include(t => t.Listing)
+            .Include(t => t.Messages)
+            .Include(t => t.Buyer)
+            .Include(t => t.Seller)
+            .Where(t => t.BuyerId == _currentUser.Id || t.SellerId == _currentUser.Id)
+            .ToList();
+        
+        if (_threads.Any() && _selectedThread == null)
+        {
+            _selectedThread = _threads.First();
+            LoadMessages();
+        }
+    }
+
+    private void SelectThread(MessageThread thread)
+    {
+        _selectedThread = thread;
+        LoadMessages();
+    }
+
+    private void LoadMessages()
+    {
+        if (_selectedThread == null) return;
+        
+        using var context = DbContextFactory.CreateDbContext();
+        _selectedThread.Messages = context.Messages
+            .Include(m => m.Sender)
+            .Where(m => m.ThreadId == _selectedThread.Id)
+            .OrderBy(m => m.SentAt)
+            .ToList();
+    }
+
+    private void SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_newMessage) || _currentUser == null || _selectedThread == null) return;
+        
+        using var context = DbContextFactory.CreateDbContext();
+        var message = new Message
+        {
+            ThreadId = _selectedThread.Id,
+            SenderId = _currentUser.Id,
+            Body = _newMessage,
+            SentAt = DateTime.UtcNow
+        };
+        
+        context.Messages.Add(message);
+        context.SaveChanges();
+        
+        _newMessage = string.Empty;
+        LoadMessages();
+    }
+
+    private void HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_newMessage))
+        {
+            SendMessage();
+        }
+    }
+}
+

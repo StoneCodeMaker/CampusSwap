@@ -1,0 +1,24 @@
+html, body {
+    font-family: 'Roboto', sans-serif;
+}
+
+.mud-card-content {
+    padding: 16px;
+}
+
+.item-card {
+    height: 100%;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.item-card:hover {
+    transform: translateY(-4px);
+}
+
+.price-text {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #1976d2;
+}
+

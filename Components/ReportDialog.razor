@@ -1,0 +1,69 @@
+@using CampusSwap.Data
+@using CampusSwap.Models
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject ISnackbar Snackbar
+@inject UserManager<AppUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudDialog Title="Report Listing">
+    <MudDialogContent>
+        <MudTextField @bind-Value="_report.Reason" Label="Reason" Lines="3" Required="true" 
+                      Variant="Variant.Outlined" />
+    </MudDialogContent>
+    <MudDialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" OnClick="Submit">Submit</MudButton>
+    </MudDialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public int ListingId { get; set; }
+    
+    private Report _report = new();
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task Submit()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User?.Identity?.IsAuthenticated != true)
+        {
+            Snackbar.Add("Please log in to report listings", Severity.Warning);
+            MudDialog.Cancel();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_report.Reason))
+        {
+            Snackbar.Add("Please provide a reason", Severity.Warning);
+            return;
+        }
+
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (user == null)
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        using var context = DbContextFactory.CreateDbContext();
+        _report.ListingId = ListingId;
+        _report.ReporterId = user.Id;
+        _report.Status = ReportStatus.Open;
+        _report.CreatedAt = DateTime.UtcNow;
+        
+        context.Reports.Add(_report);
+        context.SaveChanges();
+        
+        Snackbar.Add("Report submitted. Thank you for keeping CampusSwap safe!", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+}
+

@@ -1,0 +1,17 @@
+bin/
+obj/
+*.user
+*.suo
+*.db
+campusswap.db
+appsettings.Development.json
+.vs/
+.vscode/
+**/wwwroot/lib/
+*.log
+*.dll
+*.pdb
+
+
+# Snyk Security Extension - AI Rules (auto-generated)
+.windsurf\rules\snyk_rules.md
