@@ -9,14 +9,14 @@
 @inject AuthenticationStateProvider AuthStateProvider
 
 <MudDialog Title="Report Listing">
-    <MudDialogContent>
+    <div class="mud-dialog-content">
         <MudTextField @bind-Value="_report.Reason" Label="Reason" Lines="3" Required="true" 
                       Variant="Variant.Outlined" />
-    </MudDialogContent>
-    <MudDialogActions>
+    </div>
+    <div class="mud-dialog-actions">
         <MudButton OnClick="Cancel">Cancel</MudButton>
         <MudButton Variant="Variant.Filled" OnClick="Submit">Submit</MudButton>
-    </MudDialogActions>
+    </div>
 </MudDialog>
 
 @code {

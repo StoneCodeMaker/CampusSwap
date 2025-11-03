@@ -1,6 +1,8 @@
+<MudThemeProvider Theme="MyCustomTheme" @bind-IsDarkMode="_isDarkMode" />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
+<CascadingValue Value="_isDarkMode" Name="IsDarkMode">
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
@@ -15,4 +17,57 @@
         </NotFound>
     </Router>
 </CascadingAuthenticationState>
+</CascadingValue>
 
+@code {
+    private bool _isDarkMode;
+    
+    [Inject]
+    private IJSRuntime? JSRuntime { get; set; }
+    
+    private MudTheme MyCustomTheme = new MudTheme()
+    {
+        Palette = new Palette()
+        {
+            Primary = "#1976d2",
+            Secondary = "#ff4081",
+            AppbarBackground = "#1976d2",
+            Background = "#f5f5f5",
+            DrawerBackground = "#ffffff",
+            DrawerText = "rgba(0,0,0, 0.7)",
+            Surface = "#ffffff"
+        },
+        Typography = new Typography()
+        {
+            Default = new Default()
+            {
+                FontFamily = new[] { "Roboto", "Helvetica", "Arial", "sans-serif" },
+                FontSize = "0.875rem",
+                FontWeight = 400,
+                LineHeight = 1.43,
+                LetterSpacing = ".01071em"
+            }
+        }
+    };
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && JSRuntime != null)
+        {
+            // Initialize dark mode from localStorage
+            try
+            {
+                var isDarkMode = await JSRuntime.InvokeAsync<bool>("eval", "window.localStorage['DarkMode'] === 'true'");
+                if (_isDarkMode != isDarkMode)
+                {
+                    _isDarkMode = isDarkMode;
+                    StateHasChanged();
+                }
+            }
+            catch
+            {
+                // Ignore errors
+            }
+        }
+    }
+}

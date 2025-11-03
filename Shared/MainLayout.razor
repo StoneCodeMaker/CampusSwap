@@ -4,6 +4,8 @@
 @inject UserManager<AppUser> UserManager
 @inject SignInManager<AppUser> SignInManager
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
 
 <MudLayout>
     <MudAppBar Elevation="1">
@@ -12,8 +14,7 @@
             <MudLink Href="/" Style="color: inherit; text-decoration: none;">CampusSwap</MudLink>
         </MudText>
         <MudSpacer />
-        <MudThemeProvider IsDarkMode="@_isDarkMode" />
-        <MudIconButton Icon="@GetThemeIcon()" Color="Color.Inherit" Edge="Edge.End" OnClick="ToggleTheme" />
+        <MudIconButton Icon="@GetThemeIcon()" Color="Color.Inherit" Edge="Edge.End" OnClick="@(async () => await ToggleTheme())" />
         @if (_user != null)
         {
             <MudText Typo="Typo.body1" Class="ml-4 mr-2">@_user.Email</MudText>
@@ -45,9 +46,25 @@
 @code {
     private bool _drawerOpen = true;
     private bool _isDarkMode = false;
+    private MudTheme _currentTheme = new MudTheme();
     private AppUser? _user;
     private bool _isLoaded = false;
+    
+    [CascadingParameter]
+    public bool IsDarkMode { get; set; }
 
+    protected override void OnInitialized()
+    {
+        // Sync with the cascading parameter
+        _isDarkMode = IsDarkMode;
+    }
+    
+    protected override void OnParametersSet()
+    {
+        // Keep in sync with the cascading parameter
+        _isDarkMode = IsDarkMode;
+    }
+    
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !_isLoaded)
@@ -67,9 +84,15 @@
         _drawerOpen = !_drawerOpen;
     }
 
-    void ToggleTheme()
+    async Task ToggleTheme()
     {
         _isDarkMode = !_isDarkMode;
+        
+        // Use JS interop to toggle dark mode class on body
+        await JSRuntime.InvokeVoidAsync("setDarkMode", _isDarkMode);
+        
+        Snackbar.Add($"Switched to {(_isDarkMode ? "dark" : "light")} mode", Severity.Info);
+        StateHasChanged();
     }
 
     void Changed(bool newValue)
@@ -86,5 +109,6 @@
     {
         Navigation.NavigateTo("/Identity/Account/Logout", forceLoad: true);
     }
+    
 }
 

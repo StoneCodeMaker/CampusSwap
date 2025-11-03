@@ -30,28 +30,33 @@ A secure student-only marketplace where users log in with .edu email addresses t
 
 1. Clone or download this repository
 2. Navigate to the CampusSwap directory:
+
    ```bash
    cd CampusSwap
    ```
 
 3. Restore dependencies:
+
    ```bash
    dotnet restore
    ```
 
 4. Run the application:
+
    ```bash
    dotnet run
    ```
 
 5. Open your browser and navigate to:
-   ```
+
+   ```bash
    https://localhost:5001
    ```
 
 ### First Run
 
 On first run, the application will:
+
 - Create the SQLite database (`campusswap.db`)
 - Seed 6 categories (Books, Tech, Furniture, Clothing, Tickets, Misc)
 - Create 10 sample listings
@@ -60,6 +65,7 @@ On first run, the application will:
 ### Registration
 
 To register a new account:
+
 1. Click "Register" in the navigation
 2. Use a `.edu` email address (or ending with `@liberty.edu`)
 3. Enter your campus name
@@ -72,7 +78,7 @@ To register a new account:
 
 ## Project Structure
 
-```
+```bash
 CampusSwap/
 ├── Areas/
 │   └── Identity/          # Authentication pages
@@ -113,6 +119,4 @@ CampusSwap/
 This project is created for educational purposes.
 
 ---
-
 **Note**: This is a demo application with no real payment processing. It's designed for learning and demonstration purposes only.
-

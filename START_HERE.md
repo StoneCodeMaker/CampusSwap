@@ -5,6 +5,7 @@
 This is a complete Blazor Server application with the following structure:
 
 ### Core Files
+
 - `Program.cs` - Application startup and configuration
 - `App.razor` - Root Blazor app component
 - `_Imports.razor` - Global namespace imports
@@ -13,6 +14,7 @@ This is a complete Blazor Server application with the following structure:
 - `CampusSwap.csproj` - Project file with dependencies
 
 ### Models (Data Layer)
+
 - `AppUser.cs` - Extended Identity user with Campus property
 - `Category.cs` - Product categories
 - `Listing.cs` - Main listing entity
@@ -24,10 +26,12 @@ This is a complete Blazor Server application with the following structure:
 - `Enums.cs` - Condition, Status, ReportStatus enums
 
 ### Data Layer
+
 - `AppDbContext.cs` - Entity Framework DbContext with relationships
 - `SeedData.cs` - Seeds 6 categories, test user, and 10 sample listings
 
 ### Pages
+
 - `Home.razor` - Browse listings with search and category filters
 - `ListingDetail.razor` - View listing details, message seller, favorite, report
 - `NewListing.razor` - Create new listings
@@ -36,10 +40,12 @@ This is a complete Blazor Server application with the following structure:
 - `Favorites.razor` - View favorited listings
 
 ### Components
+
 - `MainLayout.razor` - Navigation bar with drawer, theme toggle
 - `ReportDialog.razor` - Dialog for reporting listings
 
 ### Authentication
+
 - `Areas/Identity/Pages/Account/Register.cshtml` - Registration with .edu email validation
 - `Areas/Identity/Pages/Account/Login.cshtml` - Login page
 
@@ -57,15 +63,17 @@ dotnet run
 ```
 
 The app will:
+
 1. Create SQLite database (campusswap.db)
 2. Seed 6 categories
-3. Create test user (student@liberty.edu / Test123!)
+3. Create test user (`student@liberty.edu` / `Test123!`)
 4. Add 10 sample listings
-5. Start on https://localhost:5001 (or similar)
+5. Start on `https://localhost:5001` (or similar)
 
 ## Default Credentials
-- **Email**: student@liberty.edu
-- **Password**: Test123!
+
+- **Email**: `student@liberty.edu`
+- **Password**: `Test123!`
 
 ## Features Implemented
 
@@ -81,7 +89,7 @@ The app will:
 
 ## Project Structure
 
-```
+```bash
 CampusSwap/
 ├── Areas/Identity/          # Authentication pages
 ├── Components/             # ReportDialog
@@ -96,10 +104,10 @@ CampusSwap/
 ```
 
 ## Notes
+
 - No file upload yet - uses Picsum placeholder images
 - No real payment processing
 - Uses MudBlazor for modern UI
 - EF Core with SQLite (database file: campusswap.db)
 
 Enjoy exploring CampusSwap!
-
