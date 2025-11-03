@@ -26,7 +26,7 @@
             <MudButton Variant="Variant.Text" Href="/Identity/Account/Login">Login</MudButton>
         }
     </MudAppBar>
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="2" Variant="DrawerVariant.Persistent" DisableOverlay="true">
         <MudNavMenu>
             <MudNavLink Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
             @if (_user != null)

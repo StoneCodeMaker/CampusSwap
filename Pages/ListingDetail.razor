@@ -11,7 +11,7 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
     @if (_listing != null)
     {
-        <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" Variant="Variant.Text" OnClick="BackToList">Back to Listings</MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" Variant="Variant.Text" OnClick="@BackToList">Back to Listings</MudButton>
         
         <MudGrid Spacing="3" Class="mt-2">
             <MudItem xs="12" md="6">
@@ -40,9 +40,9 @@
                 {
                     <MudStack Row="true" Spacing="2" Class="mt-4">
                         <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Message" 
-                                   OnClick="StartMessage" Color="Color.Primary">Message Seller</MudButton>
-                        <MudIconButton Icon="@GetFavoriteIcon()" OnClick="ToggleFavorite" Color="Color.Primary" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Flag" OnClick="ShowReportDialog" Color="Color.Error" />
+                                   OnClick="@StartMessage" Color="Color.Primary">Message Seller</MudButton>
+                        <MudIconButton Icon="@GetFavoriteIcon()" OnClick="@ToggleFavorite" Color="Color.Primary" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Flag" OnClick="@ShowReportDialog" Color="Color.Error" />
                     </MudStack>
                 }
                 else if (_currentUser?.Id == _listing.SellerId)
@@ -193,4 +193,3 @@
         }
     }
 }
-
