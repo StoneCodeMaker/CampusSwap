@@ -7,41 +7,49 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
 
-<MudLayout>
-    <MudAppBar Elevation="1">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
-        <MudText Typo="Typo.h6">
-            <MudLink Href="/" Style="color: inherit; text-decoration: none;">CampusSwap</MudLink>
-        </MudText>
-        <MudSpacer />
-        <MudIconButton Icon="@GetThemeIcon()" Color="Color.Inherit" Edge="Edge.End" OnClick="@(async () => await ToggleTheme())" />
-        @if (_user != null)
-        {
-            <MudText Typo="Typo.body1" Class="ml-4 mr-2">@_user.Email</MudText>
-            <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" Edge="Edge.End" OnClick="Logout" />
-        }
-        else
-        {
-            <MudButton Variant="Variant.Text" Href="/Identity/Account/Register">Register</MudButton>
-            <MudButton Variant="Variant.Text" Href="/Identity/Account/Login">Login</MudButton>
-        }
-    </MudAppBar>
-    <MudDrawer @bind-Open="_drawerOpen" Elevation="2" Variant="DrawerVariant.Persistent" DisableOverlay="true">
-        <MudNavMenu>
-            <MudNavLink Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
+<div class="page">
+    <div class="mud-appbar mud-appbar-fixed-top mud-elevation-1">
+        <div class="mud-toolbar mud-toolbar-gutters">
+            <button type="button" class="mud-button-root mud-icon-button mud-ripple mud-ripple-icon mud-icon-button-color-inherit mud-icon-button-edge-start">
+                <span class="mud-icon-button-label">
+                    <svg class="mud-icon-root mud-svg-icon mud-icon-size-medium" focusable="false" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path>
+                    </svg>
+                </span>
+            </button>
+            <h6 class="mud-typography mud-typography-h6">
+                <a href="/" style="color: inherit; text-decoration: none;">CampusSwap</a>
+            </h6>
+            <div class="flex-grow-1"></div>
             @if (_user != null)
             {
-                <MudNavLink Href="/newlisting">Sell Item</MudNavLink>
-                <MudNavLink Href="/mylistings">My Listings</MudNavLink>
-                <MudNavLink Href="/messages">Messages</MudNavLink>
-                <MudNavLink Href="/favorites">Favorites</MudNavLink>
+                <span class="mud-typography mud-typography-body1 ml-4 mr-2">@_user.Email</span>
+                <button type="button" class="mud-button-root mud-icon-button mud-ripple mud-ripple-icon mud-icon-button-color-inherit mud-icon-button-edge-end" @onclick="Logout">
+                    <span class="mud-icon-button-label">
+                        <svg class="mud-icon-root mud-svg-icon mud-icon-size-medium" focusable="false" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"></path>
+                        </svg>
+                    </span>
+                </button>
             }
-        </MudNavMenu>
-    </MudDrawer>
-    <MudMainContent>
-        @Body
-    </MudMainContent>
-</MudLayout>
+            else
+            {
+                <a href="/Identity/Account/Register" class="mud-button-root mud-button mud-button-text mud-button-text-inherit mud-button-text-size-medium mud-ripple">
+                    <span class="mud-button-label">Register</span>
+                </a>
+                <a href="/Identity/Account/Login" class="mud-button-root mud-button mud-button-text mud-button-text-inherit mud-button-text-size-medium mud-ripple">
+                    <span class="mud-button-label">Login</span>
+                </a>
+            }
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="content">
+            @Body
+        </div>
+    </div>
+</div>
 
 @code {
     private bool _drawerOpen = true;
