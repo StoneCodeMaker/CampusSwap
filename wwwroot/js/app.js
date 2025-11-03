@@ -22,6 +22,16 @@ window.setDarkMode = function (isDarkMode) {
     }
 };
 
+// Function to get dark mode from localStorage
+window.getDarkMode = function () {
+    try {
+        return window.localStorage['DarkMode'] === 'true';
+    } catch (error) {
+        console.error('Error getting dark mode:', error);
+        return false;
+    }
+};
+
 // Initialize dark mode from stored preference
 document.addEventListener('DOMContentLoaded', function() {
     try {
